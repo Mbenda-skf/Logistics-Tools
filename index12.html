@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EdmarkGestion Ultra - Kaolack</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <!-- Leaflet & Routing Machine -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#1E212B',
+                        darkSidebar: '#2A2E3D',
+                        darkCard: '#242735',
+                        brandGreen: '#4CAF50',
+                        brandRed: '#EF4444',
+                        brandBlue: '#3B82F6',
+                        textGray: '#9CA3AF'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-darkBg text-white font-sans flex h-screen overflow-hidden">
+
+    <aside class="w-64 bg-darkSidebar h-full flex flex-col shadow-lg z-10">
+        <div class="p-6 flex items-center gap-3 font-bold text-xl mb-4 text-brandBlue">
+            <i class="fas fa-leaf"></i> EdmarkGestion
+        </div>
+        <nav class="flex-col flex px-4 space-y-2">
+            <button onclick="changerPage('accueil')" id="nav-accueil" class="w-full text-left p-3 rounded-md bg-white/10 text-white flex items-center gap-3 font-medium transition"><i class="fas fa-home w-5"></i> Accueil</button>
+            <button onclick="changerPage('inventaire')" id="nav-inventaire" class="w-full text-left p-3 rounded-md text-textGray hover:bg-white/5 hover:text-white flex items-center gap-3 font-medium transition"><i class="fas fa-box w-5"></i> Inventaire</button>
+            <button onclick="changerPage('commandes')" id="nav-commandes" class="w-full text-left p-3 rounded-md text-textGray hover:bg-white/5 hover:text-white flex items-center gap-3 font-medium transition"><i class="fas fa-map-marked-alt w-5"></i> Logistique & Suivi</button>
+            <button onclick="changerPage('clients')" id="nav-clients" class="w-full text-left p-3 rounded-md text-textGray hover:bg-white/5 hover:text-white flex items-center gap-3 font-medium transition"><i class="fas fa-users w-5"></i> Clients</button>
+            <button onclick="changerPage('rapports')" id="nav-rapports" class="w-full text-left p-3 rounded-md text-textGray hover:bg-white/5 hover:text-white flex items-center gap-3 font-medium transition mt-4"><i class="fas fa-chart-line w-5"></i> Rapports</button>
+        </nav>
+    </aside>
+
+    <main class="flex-1 h-full overflow-y-auto p-8">
+        <header class="flex justify-between items-center mb-8 border-b border-gray-700 pb-4">
+            <div>
+                <h1 id="page-title" class="text-3xl font-bold mb-1">Tableau de Bord</h1>
+                <p class="text-textGray text-sm italic">Kaolack Distribution Hub</p>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="effacerTout()" class="text-xs text-brandRed opacity-50 hover:opacity-100 transition"><i class="fas fa-trash"></i> Reset</button>
+                <button onclick="ouvrirModal('modalVente')" class="bg-brandGreen text-white px-4 py-2 rounded-md font-bold shadow-lg hover:scale-105 transition"><i class="fas fa-plus"></i> Nouvelle Vente</button>
+            </div>
+        </header>
+
+        <div id="page-accueil" class="page-content block">
+            <!-- Alertes Stocks -->
+            <div id="alert-zone" class="hidden mb-6 grid grid-cols-1 gap-4">
+                <div class="bg-brandRed/10 border border-brandRed/50 p-4 rounded-lg flex items-center gap-4">
+                    <i class="fas fa-exclamation-triangle text-brandRed text-2xl animate-pulse"></i>
+                    <div>
+                        <h4 class="font-bold text-brandRed">Alertes Stocks</h4>
+                        <p id="list-alerts" class="text-sm"></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                 <div class="bg-darkCard p-6 rounded-lg border border-gray-700">
+                    <h3 class="text-textGray text-sm">Ventes Totales</h3>
+                    <p id="stat-ventes" class="text-3xl font-bold">0</p>
+                 </div>
+                 <div class="bg-darkCard p-6 rounded-lg border border-gray-700 col-span-2">
+                    <h3 class="text-textGray text-sm">Chiffre d'Affaires</h3>
+                    <p id="stat-ca" class="text-3xl font-bold text-brandGreen">0 FCFA</p>
+                 </div>
+                 <div class="bg-darkCard p-6 rounded-lg border border-gray-700">
+                    <h3 class="text-textGray text-sm">Livraisons Actives</h3>
+                    <p id="stat-livraisons" class="text-3xl font-bold text-brandBlue">0</p>
+                 </div>
+            </div>
+            <h2 class="text-xl font-bold mb-4 text-brandBlue italic">Flux d'activités récents</h2>
+            <div class="bg-darkCard rounded-lg border border-gray-700 overflow-hidden">
+                <table class="w-full text-left text-sm"><tbody id="table-ventes-recentes"></tbody></table>
+            </div>
+        </div>
+
+        <div id="page-inventaire" class="page-content hidden">
+            <div class="bg-darkCard p-6 rounded-lg border border-gray-700 mb-6 flex flex-wrap gap-4 items-center justify-between">
+                <div class="flex gap-4">
+                    <button onclick="ouvrirModal('modalProduit')" class="bg-brandBlue px-4 py-2 rounded font-bold">+ Manuel</button>
+                    <label class="bg-white/10 px-4 py-2 rounded cursor-pointer hover:bg-white/20 border border-dashed border-gray-500">
+                        <i class="fas fa-file-excel text-green-500 mr-2"></i> Importer Excel / CSV
+                        <input type="file" id="import-excel" class="hidden" accept=".xlsx, .xls, .csv" onchange="importerProduits(event)">
+                    </label>
+                </div>
+                <p class="text-xs text-textGray">Seuils personnalisables par produit</p>
+            </div>
+            <div class="bg-darkCard rounded-lg border border-gray-700 overflow-hidden">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-darkSidebar text-textGray text-xs uppercase"><tr><th class="p-4">Produit</th><th class="p-4">Prix Unit.</th><th class="p-4">Stock</th><th class="p-4 text-right">Actions</th></tr></thead>
+                    <tbody id="table-inventaire" class="text-sm divide-y divide-gray-700"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="page-commandes" class="page-content hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                <div class="lg:col-span-2 bg-darkCard p-2 rounded-lg border border-gray-700 relative">
+                    <div id="map" class="w-full rounded z-0" style="height: 450px;"></div>
+                    <div class="absolute top-4 left-4 bg-darkBg/90 px-3 py-1 rounded text-xs font-bold border border-gray-600 z-[1000]">
+                        <i class="fas fa-satellite text-brandBlue"></i> GPS Tracking Kaolack
+                    </div>
+                </div>
+                <div class="bg-darkCard p-4 rounded-lg border border-gray-700 overflow-y-auto" style="height: 450px;">
+                    <h3 class="font-bold mb-4 text-brandBlue flex items-center gap-2 underline decoration-brandBlue/30">LIVRAISONS EN COURS</h3>
+                    <div id="liste-vehicules" class="space-y-3"></div>
+                </div>
+            </div>
+
+            <div class="bg-darkCard rounded-lg border border-gray-700 overflow-hidden">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-darkSidebar text-textGray text-xs uppercase"><tr><th class="p-4">ID</th><th class="p-4">Date</th><th class="p-4">Client</th><th class="p-4">Produit</th><th class="p-4">Mode</th><th class="p-4">Statut</th></tr></thead>
+                    <tbody id="table-toutes-ventes" class="text-sm divide-y divide-gray-700"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="page-clients" class="page-content hidden">
+            <button onclick="ouvrirModal('modalClient')" class="mb-4 bg-brandGreen px-4 py-2 rounded font-bold">+ Nouveau Client</button>
+            <div class="bg-darkCard rounded-lg border border-gray-700 overflow-hidden">
+                <table class="w-full text-left border-collapse text-sm">
+                    <tbody id="table-clients" class="divide-y divide-gray-700"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="page-rapports" class="page-content hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div class="bg-darkCard p-4 rounded-lg border border-gray-700">
+                    <h3 class="mb-4 font-bold text-brandBlue">Évolution des ventes</h3>
+                    <canvas id="chartEvol"></canvas>
+                </div>
+                <div class="bg-darkCard p-4 rounded-lg border border-gray-700">
+                    <h3 class="mb-4 font-bold text-brandGreen">Performance Produits</h3>
+                    <canvas id="chartTop"></canvas>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-darkCard p-4 rounded-lg border border-gray-700">
+                    <h3 class="mb-4 font-bold text-yellow-500">Modes de Consommation</h3>
+                    <div class="h-64 flex justify-center">
+                        <canvas id="chartMode"></canvas>
+                    </div>
+                </div>
+                <div class="bg-darkCard p-4 rounded-lg border border-gray-700 overflow-hidden">
+                    <h3 class="mb-4 font-bold text-brandBlue">Rentabilité Catalogue</h3>
+                    <table class="w-full text-left text-xs">
+                        <thead class="text-textGray uppercase border-b border-gray-700">
+                            <tr><th class="pb-2">Produit</th><th class="pb-2">Vendus</th><th class="pb-2">Total CA</th></tr>
+                        </thead>
+                        <tbody id="table-rentabilite" class="divide-y divide-gray-800"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODAL REAPPROVISIONNEMENT -->
+    <div id="modalReappro" class="fixed inset-0 bg-black/80 hidden flex justify-center items-center z-50">
+        <div class="bg-darkBg p-6 rounded border border-gray-700 w-80">
+            <h3 id="reappro-titre" class="mb-4 font-bold text-brandGreen text-lg">Réapprovisionner</h3>
+            <input type="hidden" id="reappro-id">
+            <p class="text-xs text-textGray mb-2">Quantité à ajouter au stock :</p>
+            <input type="number" id="reappro-qte" placeholder="Ex: 50" class="w-full bg-darkCard p-2 mb-4 rounded border border-gray-600">
+            <button onclick="validerReappro()" class="w-full bg-brandGreen py-2 rounded font-bold">Mettre à jour le stock</button>
+            <button onclick="fermerModal('modalReappro')" class="w-full text-xs mt-2">Annuler</button>
+        </div>
+    </div>
+
+    <!-- MODAL DEFINIR SEUIL -->
+    <div id="modalSeuil" class="fixed inset-0 bg-black/80 hidden flex justify-center items-center z-50">
+        <div class="bg-darkBg p-6 rounded border border-gray-700 w-80">
+            <h3 id="seuil-titre" class="mb-4 font-bold text-brandBlue text-lg">Alerte de Stock</h3>
+            <input type="hidden" id="seuil-id">
+            <p class="text-xs text-textGray mb-2">M'alerter si le stock descend sous :</p>
+            <input type="number" id="seuil-val" placeholder="Ex: 10" class="w-full bg-darkCard p-2 mb-4 rounded border border-gray-600">
+            <button onclick="validerSeuil()" class="w-full bg-brandBlue py-2 rounded font-bold">Enregistrer le seuil</button>
+            <button onclick="fermerModal('modalSeuil')" class="w-full text-xs mt-2">Annuler</button>
+        </div>
+    </div>
+
+    <!-- Modals (Inchangés mais conservés pour fonctionnement) -->
+    <div id="modalVente" class="fixed inset-0 bg-black/80 hidden flex justify-center items-center z-50 p-4">
+        <div class="bg-darkBg rounded-xl p-6 w-full max-w-md border border-gray-700 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <h2 class="text-2xl font-bold mb-6 text-brandGreen">Nouvelle Vente</h2>
+            <div class="space-y-4">
+                <label class="block">
+                    <span class="text-xs text-textGray">Choisir le Client</span>
+                    <select id="v-cli" class="w-full bg-darkCard border border-gray-600 rounded p-3 mt-1"></select>
+                </label>
+                <div class="flex gap-4">
+                    <label class="block flex-1">
+                        <span class="text-xs text-textGray">Produit</span>
+                        <select id="v-prod" class="w-full bg-darkCard border border-gray-600 rounded p-3 mt-1"></select>
+                    </label>
+                    <label class="block w-24">
+                        <span class="text-xs text-textGray">Qté</span>
+                        <input type="number" id="v-qte" value="1" min="1" class="w-full bg-darkCard border border-gray-600 rounded p-3 mt-1 text-center font-bold">
+                    </label>
+                </div>
+                <div class="border-t border-gray-600 pt-4 mt-2">
+                    <label class="block">
+                        <span class="text-xs text-brandBlue font-bold uppercase">Mode de récupération</span>
+                        <select id="v-mode" onchange="toggleAdresse()" class="w-full bg-darkCard border border-brandBlue rounded p-3 mt-1 text-white font-bold">
+                            <option value="boutique">🛍️ Retrait en Boutique</option>
+                            <option value="livraison">🚚 Livraison par Véhicule/Moto</option>
+                        </select>
+                    </label>
+                </div>
+                <div id="zone-adresse" class="hidden">
+                    <label class="block">
+                        <span class="text-xs text-textGray">Quartier / Rue (Kaolack)</span>
+                        <input type="text" id="v-adresse" placeholder="Ex: Medina Baye, Bongré, Ndorong..." class="w-full bg-darkCard border border-gray-600 rounded p-3 mt-1">
+                    </label>
+                </div>
+                <button onclick="validerVente()" class="w-full bg-brandGreen py-3 rounded-lg font-bold text-lg mt-6 shadow-lg active:scale-95 transition">Encaisser & Valider</button>
+                <button onclick="fermerModal('modalVente')" class="w-full text-textGray text-sm">Annuler</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Produit -->
+    <div id="modalProduit" class="fixed inset-0 bg-black/80 hidden flex justify-center items-center z-50">
+        <div class="bg-darkBg p-6 rounded border border-gray-700 w-80">
+            <h3 class="mb-4 font-bold">Ajout Manuel</h3>
+            <input type="text" id="p-nom" placeholder="Nom" class="w-full bg-darkCard p-2 mb-2 rounded border border-gray-600">
+            <input type="number" id="p-prix" placeholder="Prix" class="w-full bg-darkCard p-2 mb-2 rounded border border-gray-600">
+            <input type="number" id="p-stock" placeholder="Stock" class="w-full bg-darkCard p-2 mb-4 rounded border border-gray-600">
+            <button onclick="ajouterProduit()" class="w-full bg-brandBlue py-2 rounded font-bold">Sauvegarder</button>
+            <button onclick="fermerModal('modalProduit')" class="w-full text-xs mt-2">Fermer</button>
+        </div>
+    </div>
+
+    <!-- Modal Client -->
+    <div id="modalClient" class="fixed inset-0 bg-black/80 hidden flex justify-center items-center z-50">
+        <div class="bg-darkBg p-6 rounded border border-gray-700 w-80">
+            <h3 class="mb-4 font-bold">Nouveau Client</h3>
+            <input type="text" id="c-nom" placeholder="Nom" class="w-full bg-darkCard p-2 mb-2 rounded border border-gray-600">
+            <input type="text" id="c-tel" placeholder="Téléphone" class="w-full bg-darkCard p-2 mb-4 rounded border border-gray-600">
+            <button onclick="ajouterClient()" class="w-full bg-brandGreen py-2 rounded font-bold">Ajouter</button>
+            <button onclick="fermerModal('modalClient')" class="w-full text-xs mt-2">Fermer</button>
+        </div>
+    </div>
+
+    <script>
+        // DB INITIALISATION
+        let db = {
+            produits: JSON.parse(localStorage.getItem('ed_p')) || [],
+            clients: JSON.parse(localStorage.getItem('ed_c')) || [],
+            ventes: JSON.parse(localStorage.getItem('ed_v')) || []
+        };
+
+        let chartEvol = null, chartTop = null, chartMode = null;
+        let carte = null, routeControl = null;
+        const COORDS_KAOLACK = [14.1333, -16.2533];
+
+        function save() {
+            localStorage.setItem('ed_p', JSON.stringify(db.produits));
+            localStorage.setItem('ed_c', JSON.stringify(db.clients));
+            localStorage.setItem('ed_v', JSON.stringify(db.ventes));
+            render();
+        }
+
+        function changerPage(p) {
+            document.querySelectorAll('.page-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('nav button').forEach(el => el.classList.replace('bg-white/10', 'hover:bg-white/5'));
+            document.getElementById('page-'+p).classList.remove('hidden');
+            document.getElementById('nav-'+p).classList.replace('hover:bg-white/5', 'bg-white/10');
+            document.getElementById('page-title').innerText = p === 'commandes' ? "LOGISTIQUE KAOLACK" : p.toUpperCase();
+            
+            if(p === 'rapports') setTimeout(initCharts, 100);
+            if(p === 'commandes') setTimeout(initCarte, 200);
+        }
+
+        function ouvrirModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function fermerModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+        function toggleAdresse() {
+            const mode = document.getElementById('v-mode').value;
+            document.getElementById('zone-adresse').className = (mode === 'livraison') ? 'block' : 'hidden';
+        }
+
+        // ---------- NOUVELLES FONCTIONS : SEUILS & REAPPRO ---------- //
+        function ouvrirReappro(id) {
+            let p = db.produits.find(x => x.id === id);
+            document.getElementById('reappro-id').value = id;
+            document.getElementById('reappro-titre').innerText = "Réappro : " + p.nom;
+            ouvrirModal('modalReappro');
+        }
+
+        function validerReappro() {
+            let id = parseInt(document.getElementById('reappro-id').value);
+            let qte = parseInt(document.getElementById('reappro-qte').value);
+            let p = db.produits.find(x => x.id === id);
+            if(p && qte > 0) {
+                p.stock += qte;
+                save();
+                fermerModal('modalReappro');
+                document.getElementById('reappro-qte').value = '';
+            }
+        }
+
+        function ouvrirSeuil(id) {
+            let p = db.produits.find(x => x.id === id);
+            document.getElementById('seuil-id').value = id;
+            document.getElementById('seuil-val').value = p.seuil || 5;
+            document.getElementById('seuil-titre').innerText = "Seuil Alerte : " + p.nom;
+            ouvrirModal('modalSeuil');
+        }
+
+        function validerSeuil() {
+            let id = parseInt(document.getElementById('seuil-id').value);
+            let val = parseInt(document.getElementById('seuil-val').value);
+            let p = db.produits.find(x => x.id === id);
+            if(p) {
+                p.seuil = val;
+                save();
+                fermerModal('modalSeuil');
+            }
+        }
+
+        // ---------- LOGISTIQUE & CARTE AVANCÉE ---------- //
+        function initCarte() {
+            if(carte !== null) return;
+            carte = L.map('map').setView(COORDS_KAOLACK, 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(carte);
+            L.marker(COORDS_KAOLACK).addTo(carte).bindPopup('<b>SIÈGE EDMARK KAOLACK</b>');
+            majVehicules();
+        }
+
+        function tracerItineraire(destCoord, adresse) {
+            if (routeControl) carte.removeControl(routeControl);
+            
+            routeControl = L.Routing.control({
+                waypoints: [
+                    L.latLng(COORDS_KAOLACK),
+                    L.latLng(destCoord)
+                ],
+                routeWhileDragging: false,
+                language: 'fr',
+                createMarker: function() { return null; }
+            }).addTo(carte);
+
+            carte.setView(destCoord, 15);
+        }
+
+        function majVehicules() {
+            if(!carte) return;
+            let livraisons = db.ventes.filter(v => v.mode === 'livraison' && v.statut === 'en_route');
+
+            document.getElementById('liste-vehicules').innerHTML = livraisons.map(liv => {
+                let lat = COORDS_KAOLACK[0] + (Math.random()-0.5)*0.04;
+                let lng = COORDS_KAOLACK[1] + (Math.random()-0.5)*0.04;
+                return `
+                    <div onclick="tracerItineraire([${lat}, ${lng}], '${liv.adresse}')" class="p-3 bg-darkBg rounded border border-gray-700 border-l-4 border-l-brandBlue cursor-pointer hover:bg-gray-800 transition">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="font-bold text-sm text-brandBlue">${liv.adresse}</p>
+                                <p class="text-[10px] text-textGray">${liv.client}</p>
+                            </div>
+                            <span class="text-xs font-mono text-brandGreen">${liv.eta} min</span>
+                        </div>
+                        <button onclick="terminerLivraison(${liv.id})" class="mt-2 w-full text-[10px] bg-brandGreen/20 text-brandGreen border border-brandGreen/50 py-1 rounded">Confirmer Livraison</button>
+                    </div>
+                `;
+            }).join('');
+
+            if(livraisons.length === 0) {
+                document.getElementById('liste-vehicules').innerHTML = '<p class="text-xs text-textGray italic p-4">Aucune livraison en cours sur Kaolack.</p>';
+                if(routeControl) carte.removeControl(routeControl);
+            }
+        }
+
+        function terminerLivraison(id) {
+            let v = db.ventes.find(x => x.id === id);
+            if(v) { v.statut = 'livre'; v.eta = 0; save(); }
+        }
+
+        // ---------- GESTION STOCKS & ALERTES ---------- //
+        function verifierAlertes() {
+            let alertZone = document.getElementById('alert-zone');
+            let listAlerts = document.getElementById('list-alerts');
+            let critiques = db.produits.filter(p => p.stock <= (p.seuil || 5));
+
+            if(critiques.length > 0) {
+                alertZone.classList.remove('hidden');
+                listAlerts.innerHTML = critiques.map(p => 
+                    `<strong>${p.nom}</strong> (${p.stock <= 0 ? 'RUPTURE' : 'Stock bas: ' + p.stock})`
+                ).join(' | ');
+            } else {
+                alertZone.classList.add('hidden');
+            }
+        }
+
+        // ---------- LOGIQUE MÉTIER ---------- //
+        function validerVente() {
+            let pid = parseInt(document.getElementById('v-prod').value);
+            let qte = parseInt(document.getElementById('v-qte').value);
+            let p = db.produits.find(x => x.id === pid);
+            let mode = document.getElementById('v-mode').value;
+
+            if(p && p.stock >= qte) {
+                p.stock -= qte;
+                db.ventes.unshift({
+                    id: Date.now(),
+                    date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString().substring(0,5),
+                    client: document.getElementById('v-cli').value,
+                    produit: p.nom,
+                    qte: qte,
+                    total: p.prix * qte,
+                    mode: mode,
+                    adresse: mode === 'livraison' ? document.getElementById('v-adresse').value : 'Boutique',
+                    statut: mode === 'livraison' ? 'en_route' : 'livre',
+                    eta: mode === 'livraison' ? Math.floor(Math.random() * 25) + 10 : 0
+                });
+                save(); 
+                fermerModal('modalVente');
+            } else { alert("Stock insuffisant !"); }
+        }
+
+        function ajouterProduit() {
+            let n = document.getElementById('p-nom').value;
+            let p = parseInt(document.getElementById('p-prix').value);
+            let s = parseInt(document.getElementById('p-stock').value);
+            if(n && p) { db.produits.push({id:Date.now(), nom:n, prix:p, stock:s||0, seuil:5}); save(); fermerModal('modalProduit'); }
+        }
+
+        function ajouterClient() {
+            let n = document.getElementById('c-nom').value; let t = document.getElementById('c-tel').value;
+            if(n) { db.clients.push({id:Date.now(), nom:n, tel:t}); save(); fermerModal('modalClient'); }
+        }
+
+        // ---------- RENDU & GRAPHIQUES ---------- //
+        function render() {
+            document.getElementById('stat-ventes').innerText = db.ventes.length;
+            document.getElementById('stat-ca').innerText = db.ventes.reduce((a,b)=>a+b.total,0).toLocaleString() + " F";
+            document.getElementById('stat-livraisons').innerText = db.ventes.filter(v => v.statut === 'en_route').length;
+
+            document.getElementById('table-inventaire').innerHTML = db.produits.map(p => `
+                <tr class="${p.stock <= (p.seuil || 5) ? 'bg-brandRed/5' : ''}">
+                    <td class="p-4 font-bold">${p.nom}</td>
+                    <td class="p-4">${p.prix} F</td>
+                    <td class="p-4 ${p.stock <= (p.seuil || 5) ? 'text-brandRed font-bold' : ''}">${p.stock}</td>
+                    <td class="p-4 text-right flex justify-end gap-2">
+                        <button class="bg-brandGreen/20 text-brandGreen p-2 rounded" onclick="ouvrirReappro(${p.id})"><i class="fas fa-plus"></i></button>
+                        <button class="bg-brandBlue/20 text-brandBlue p-2 rounded" onclick="ouvrirSeuil(${p.id})"><i class="fas fa-bell"></i></button>
+                        <button class="text-textGray hover:text-brandRed p-2" onclick="db.produits=db.produits.filter(x=>x.id!==${p.id});save()"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>`).join('');
+
+            document.getElementById('table-clients').innerHTML = db.clients.map(c => `<tr><td class="p-4 font-bold text-brandBlue">${c.nom}</td><td class="p-4 italic">${c.tel}</td><td class="p-4 text-right"><button onclick="db.clients=db.clients.filter(x=>x.id!==${c.id});save()"><i class="fas fa-trash text-brandRed"></i></button></td></tr>`).join('');
+            
+            document.getElementById('table-toutes-ventes').innerHTML = db.ventes.map(v => `
+                <tr>
+                    <td class="p-4 text-xs text-textGray">#${v.id.toString().substring(9)}</td>
+                    <td class="p-4">${v.date}</td>
+                    <td class="p-4 font-bold">${v.client}</td>
+                    <td class="p-4">${v.produit} (x${v.qte})</td>
+                    <td class="p-4">${v.mode === 'livraison' ? '🚚' : '🛍️'}</td>
+                    <td class="p-4">${v.statut === 'en_route' ? '<span class="text-brandBlue animate-pulse italic">En route...</span>' : '<span class="text-brandGreen">✓ Reçu</span>'}</td>
+                </tr>`).join('');
+
+            document.getElementById('table-ventes-recentes').innerHTML = db.ventes.slice(0,6).map(v => `
+                <tr class="border-b border-gray-800">
+                    <td class="p-4 font-bold">${v.client}</td>
+                    <td class="p-4 text-textGray">${v.produit} <span class="text-[10px] ml-2 px-1 border border-gray-600">${v.mode}</span></td>
+                    <td class="p-4 text-right font-bold text-brandGreen">+${v.total.toLocaleString()} F</td>
+                </tr>`).join('');
+
+            document.getElementById('v-prod').innerHTML = db.produits.map(p => `<option value="${p.id}">${p.nom} (Stock: ${p.stock})</option>`).join('');
+            document.getElementById('v-cli').innerHTML = '<option>Client de passage</option>' + db.clients.map(c => `<option>${c.nom}</option>`).join('');
+
+            verifierAlertes();
+            if(carte) majVehicules();
+        }
+
+        function initCharts() {
+            if(chartEvol) chartEvol.destroy();
+            if(chartTop) chartTop.destroy();
+            if(chartMode) chartMode.destroy();
+            
+            let labels = [...new Set(db.ventes.map(v => v.date.split(' ')[0]))].reverse();
+            let dataE = labels.map(l => db.ventes.filter(v=>v.date.startsWith(l)).reduce((a,b)=>a+b.total,0));
+            chartEvol = new Chart(document.getElementById('chartEvol'), { type:'line', data:{ labels, datasets:[{label:'CA (FCFA)', data:dataE, borderColor:'#3B82F6', tension:0.4, fill:true, backgroundColor:'rgba(59, 130, 246, 0.1)'}] } });
+            
+            let tops = {}; db.ventes.forEach(v => tops[v.produit] = (tops[v.produit]||0)+v.qte);
+            chartTop = new Chart(document.getElementById('chartTop'), { type:'bar', data:{ labels:Object.keys(tops), datasets:[{label:'Unités Vendues', data:Object.values(tops), backgroundColor:'#4CAF50'}] } });
+
+            let modes = { "livraison": 0, "boutique": 0 };
+            db.ventes.forEach(v => modes[v.mode]++);
+            chartMode = new Chart(document.getElementById('chartMode'), { type:'doughnut', data:{ labels:['Livraison', 'Boutique'], datasets:[{data:[modes.livraison, modes.boutique], backgroundColor:['#3B82F6', '#4CAF50']}] } });
+
+            let rent = {};
+            db.ventes.forEach(v => {
+                if(!rent[v.produit]) rent[v.produit] = { qte:0, ca:0 };
+                rent[v.produit].qte += v.qte;
+                rent[v.produit].ca += v.total;
+            });
+            document.getElementById('table-rentabilite').innerHTML = Object.entries(rent).sort((a,b)=>b[1].ca - a[1].ca).map(([nom, d]) => `
+                <tr><td class="py-2">${nom}</td><td>${d.qte}</td><td class="font-bold text-brandGreen">${d.ca.toLocaleString()} F</td></tr>
+            `).join('');
+        }
+
+        function importerProduits(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1});
+                rows.forEach((row, i) => { if(i>0 && row[0]) db.produits.push({id:Date.now()+i, nom:row[0], prix:parseInt(row[1])||0, stock:parseInt(row[2])||0, seuil:5}); });
+                save();
+                alert("Importation réussie !");
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function effacerTout() { if(confirm("Réinitialiser ?")) { localStorage.clear(); location.reload(); } }
+
+        render();
+    </script>
+</body>
+</html>
